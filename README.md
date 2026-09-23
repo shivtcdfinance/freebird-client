@@ -9,6 +9,7 @@ agreeing to behave.
 
 ```bash
 python3 freebird.py            # start (and apply any config change)
+python3 freebird.py ui         # open the control panel in your browser
 python3 freebird.py status     # what it is using right now
 python3 freebird.py logs       # live output
 python3 freebird.py stop       # stop and remove

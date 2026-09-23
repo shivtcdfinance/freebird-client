@@ -13,6 +13,7 @@ WHY A LAUNCHER AT ALL
 
 USAGE
   python3 freebird.py            # start (and apply any config change)
+  python3 freebird.py ui         # open the control panel (weekly/monthly compute, ceiling sliders)
   python3 freebird.py status     # what it is using right now
   python3 freebird.py logs       # live output
   python3 freebird.py stop       # stop and remove
@@ -33,7 +34,7 @@ IS_WIN = platform.system() == "Windows"
 HOME = os.environ.get("FREEBIRD_HOME") or os.path.join(os.path.expanduser("~"), ".freebird")
 CONFIG = os.path.join(HOME, "config.json")
 TOKEN = os.path.join(HOME, ".token")
-IMAGE = os.environ.get("FREEBIRD_IMAGE") or "ghcr.io/shivtcdfinance/freebird-client:0.3"
+IMAGE = os.environ.get("FREEBIRD_IMAGE") or "ghcr.io/shivtcdfinance/freebird-client:0.4"
 NAME = "freebird"
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -261,6 +262,15 @@ def config():
 
 
 COMMANDS = {"up": up, "status": status, "stop": stop, "logs": logs, "config": config}
+
+
+def ui():
+    """Open the local control panel — the surface a person actually uses."""
+    import freebird_ui
+    raise SystemExit(freebird_ui.main("--no-open" not in sys.argv))
+
+
+COMMANDS["ui"] = ui
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "up"

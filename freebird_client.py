@@ -264,8 +264,20 @@ def worker_main(cfg, duty, ctr, lock, stop, wid):
 
 
 def children_rss_mb(pids):
-    """Total resident memory of the worker processes — the number the RAM ceiling is checked
-    against. Read from the OS, not self-reported."""
+    """Memory in use, taken from the KERNEL — never from a tool that may not exist.
+
+    Two reasons not to shell out to `ps`: python:3.12-slim ships WITHOUT procps, so inside the
+    container `ps` is missing and the figure silently reported 0 MB — a display that lies about
+    usage is worse than no display, because it looks like an answer. And the cgroup value is the
+    container's real memory as the kernel accounts it, i.e. exactly the number the customer's RAM
+    limit is enforced against. `ps` remains only as the bare-host fallback.
+    """
+    for path in ("/sys/fs/cgroup/memory.current",              # cgroup v2
+                 "/sys/fs/cgroup/memory/memory.usage_in_bytes"):  # cgroup v1
+        try:
+            return int(open(path).read().strip()) / 1048576.0
+        except Exception:
+            pass
     try:
         out = os.popen("ps -o rss= -p " + ",".join(str(p) for p in pids)).read()
         return sum(int(x) for x in out.split()) / 1024.0
@@ -287,7 +299,7 @@ def main():
 
     resolve_bus(cfg)
     procs_n, duty, target, enforced = governor(cfg)
-    print("FREEBIRD CLIENT v0.3")
+    print("FREEBIRD CLIENT v0.4")
     print("  machine          : %d cores" % CORES)
     print("  YOUR ceiling     : %s%% CPU  (= %.2f of %d cores), %s MB RAM, %s MB disk"
           % (cfg["cpu_percent_max"], target, CORES, cfg["ram_mb_max"], cfg["disk_mb_max"]))
@@ -314,7 +326,16 @@ def main():
         p.start()
 
     t_start = time.time()
-    dur = float(cfg.get("run_seconds") or 60)
+    # Default ONLY when the key is absent. This previously read `cfg.get("run_seconds") or 60`,
+    # and since 0 is falsy the documented "run until stopped" value silently became a 60-SECOND
+    # timer: the client exited cleanly every minute, the restart policy brought it back, and the
+    # counters reset each time — so a machine that had contributed for hours still showed a
+    # near-zero total and looked idle. A falsy default is not a shortcut, it is a silent override.
+    raw = cfg.get("run_seconds")
+    try:
+        dur = float(60 if raw is None else raw)
+    except (TypeError, ValueError):
+        dur = 60.0
     if dur <= 0:
         dur = float("inf")            # 0 = run until stopped (the container's normal mode)
     try:
@@ -328,7 +349,7 @@ def main():
                       % ctr.get("consec_err"))
                 break
             rss = children_rss_mb([p.pid for p in procs])
-            st = {"client": "freebird v0.3",
+            st = {"client": "freebird v0.4",
                   "ceiling_cpu_percent": cfg["cpu_percent_max"],
                   "ceiling_ram_mb": cfg["ram_mb_max"],
                   "ceiling_disk_mb": cfg["disk_mb_max"],
