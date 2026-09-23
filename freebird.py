@@ -186,8 +186,17 @@ def up():
     ensure_image()
     cfg = load_cfg()
 
-    # the token: never in argv (docker inspect exposes it), only in the mounted config dir
-    if not os.path.isfile(TOKEN) and os.path.isfile("/tmp/bus.token"):
+    # the token: never in argv (docker inspect exposes it), only in the mounted config dir.
+    # A key can arrive three ways, in order: the installer put it in FREEBIRD_TOKEN; it is already
+    # stored; or (the owner's own machines only) it was staged at /tmp/bus.token. Getting this wrong
+    # is silent — every call goes out unauthenticated and the client just appears to find no work.
+    tok_env = (os.environ.get("FREEBIRD_TOKEN") or "").strip()
+    if tok_env and not os.path.isfile(TOKEN):
+        with open(TOKEN, "w") as fh:
+            fh.write(tok_env)
+        os.chmod(TOKEN, 0o600)
+        print("machine key stored in %s" % TOKEN)
+    elif not os.path.isfile(TOKEN) and os.path.isfile("/tmp/bus.token"):
         shutil.copy("/tmp/bus.token", TOKEN)
         os.chmod(TOKEN, 0o600)
         print("token staged into %s" % TOKEN)
