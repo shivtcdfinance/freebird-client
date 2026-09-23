@@ -174,6 +174,13 @@ def run_args(cfg):
         "--tmpfs", "/tmp:rw,noexec,nosuid,size=%dm" % disk,     # the only scratch, size-capped
         "--mount", "type=bind,source=%s,target=/data" % os.path.abspath(HOME),
         "--env", "FREEBIRD_HOME=/data",
+        # The container must not inherit the host's resolver. Measured failure mode (2026-09-23): the
+        # host had a stale negative answer cached for the bus hostname, so `curl` said "could not
+        # resolve host" while `dig` returned it happily — and because Docker Desktop forwards to the
+        # host resolver, the container inherited the same poison and could never reach the bus. Its
+        # own resolvers make the client's reachability a property of the client, not of whatever the
+        # customer's machine happens to have cached.
+        "--dns", "1.1.1.1", "--dns", "8.8.8.8",
         "--network", "bridge",                                  # outbound only; nothing dials in
         "--restart", "unless-stopped",
         "--label", "freebird.client=1",
