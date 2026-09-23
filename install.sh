@@ -48,6 +48,18 @@ else
   die "Neither curl nor wget is available, so the client cannot be downloaded."
 fi
 
+# ── python 3 ────────────────────────────────────────────────────────────────────────────────────
+# Checked before downloading anything: a machine without python3 would otherwise fetch the client
+# and then fail with a bare "python3: not found", which tells the person nothing about what to do.
+if ! command -v python3 >/dev/null 2>&1; then
+  die "python3 is required and was not found.
+  macOS: it ships with the developer tools (run: xcode-select --install)
+  Debian/Ubuntu: sudo apt install python3
+  Fedora/RHEL:   sudo dnf install python3
+  Windows: use WSL or Git Bash, which include it."
+fi
+say "python3        : $(python3 -V 2>&1)"
+
 # ── the client itself ───────────────────────────────────────────────────────────────────────────
 mkdir -p "$CLIENT"
 fetch "$BASE/freebird.py" "$CLIENT/freebird.py"
