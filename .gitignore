@@ -1,0 +1,8 @@
+# never commit anything holding a credential or a machine's settings
+.token
+*.token
+config.json
+status.json
+.freebird/
+__pycache__/
+*.pyc

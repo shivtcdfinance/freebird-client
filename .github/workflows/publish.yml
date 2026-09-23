@@ -1,0 +1,53 @@
+name: publish
+
+# Publishes the Freebird client image for BOTH architectures, so any machine can
+# `docker pull ghcr.io/shivtcdfinance/freebird-client` regardless of CPU.
+#
+# Why CI builds it instead of a laptop:
+#   * GITHUB_TOKEN carries packages:write by default, so publishing needs no personal token
+#     scope and no human credential on any machine.
+#   * The amd64 image is built natively on an amd64 runner instead of being emulated on an
+#     Apple-silicon laptop — faster, and the same builder for every release.
+#   * Every published image traces back to a commit, which is the provenance a customer
+#     installing this on their own hardware is entitled to.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=0.3
+            type=sha,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
