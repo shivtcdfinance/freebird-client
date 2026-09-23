@@ -33,7 +33,7 @@ IS_WIN = platform.system() == "Windows"
 HOME = os.environ.get("FREEBIRD_HOME") or os.path.join(os.path.expanduser("~"), ".freebird")
 CONFIG = os.path.join(HOME, "config.json")
 TOKEN = os.path.join(HOME, ".token")
-IMAGE = os.environ.get("FREEBIRD_IMAGE") or "freebird-client:latest"
+IMAGE = os.environ.get("FREEBIRD_IMAGE") or "ghcr.io/shivtcdfinance/freebird-client:0.3"
 NAME = "freebird"
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -124,17 +124,24 @@ def ensure_docker():
 
 
 def ensure_image():
+    """Get the client image — PULLED first, local build only as a fallback.
+
+    The published image is multi-arch, so pulling gives the right build for whatever CPU this
+    machine has (amd64 or arm64) without the customer compiling anything. Building locally is for
+    someone working on the client itself, not for someone installing it.
+    """
     if docker("image", "inspect", IMAGE).returncode == 0:
         return
+    print("pulling the client image: %s" % IMAGE)
+    if docker("pull", IMAGE).returncode == 0:
+        return
     if os.path.isfile(os.path.join(HERE, "Dockerfile")):
-        print("building the client image (first run only)...")
+        print("pull failed — building locally instead...")
         r = docker("build", "-t", IMAGE, HERE)
         if r.returncode == 0:
             return
         sys.exit("image build failed:\n%s" % r.stderr[-800:])
-    print("pulling %s ..." % IMAGE)
-    if docker("pull", IMAGE).returncode != 0:
-        sys.exit("cannot obtain the client image %s" % IMAGE)
+    sys.exit("cannot obtain the client image %s" % IMAGE)
 
 
 def current(name=NAME):
