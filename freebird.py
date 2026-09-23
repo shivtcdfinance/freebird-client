@@ -229,10 +229,15 @@ def status():
     if os.path.isfile(st):
         try:
             d = json.load(open(st))
-            print("client reports: ceiling %s%% | enforced by %s | local %s | margin %s | "
-                  "errors %s | %s MB RAM"
-                  % (d.get("ceiling_cpu_percent"), d.get("enforced_by"), d.get("jobs_local"),
-                     d.get("jobs_margin"), d.get("errors"), d.get("workers_rss_mb")))
+            # Always show WHEN the client wrote this, and which door it came through. Without the
+            # timestamp a file left over from a previous run reads as current — which is how a
+            # launcher ends up reporting a ceiling that is not the one actually applied.
+            print("client reports (as of %s): ceiling %s%% | enforced by %s | endpoint %s"
+                  % (d.get("updated"), d.get("ceiling_cpu_percent"), d.get("enforced_by"),
+                     d.get("bus_url_active")))
+            print("                            local %s | margin %s | errors %s | %s MB RAM"
+                  % (d.get("jobs_local"), d.get("jobs_margin"), d.get("errors"),
+                     d.get("workers_rss_mb")))
         except Exception:
             pass
 
